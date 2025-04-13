@@ -1,2 +1,303 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cricket Scorecard</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 10px; background: #f0f4f8; }
+    .scoreboard { background: #fff; padding: 20px; border-radius: 15px; max-width: 600px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    h2, h3 { text-align: center; color: #333; }
+    .section input, .section select { width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+    .buttons { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px,1fr)); gap: 10px; }
+    button { padding: 12px; font-size: 16px; border: none; border-radius: 10px; cursor: pointer; background: #e0e0e0; transition: background 0.2s; }
+    button:hover { background: #d5d5d5; }
+    .btn-undo, .btn-reset { grid-column: span 2; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+    .stat { background: #e3f2fd; padding: 6px 10px; margin: 4px 0; border-radius: 6px; }
+    .highlight { background: #fff3cd; }
+    #matchSummary { display: none; text-align: center; background: #e6ffe6; padding: 20px; margin: 20px auto; border-radius: 12px; font-size: 18px; max-width: 600px; }
+    #targetHeading { text-align: center; font-size: 28px; color: #d32f2f; font-weight: bold; margin-bottom: 15px; }
+    .confetti { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: rgba(255,223,0,0.7); pointer-events: none; z-index: 999; animation: pop 1s ease-out infinite alternate; }
+    @keyframes pop { from { transform: scale(1); opacity: 0.8; } to { transform: scale(1.1); opacity: 1; } }
+    .commentary { margin: 20px auto; background: #f9f9f9; padding: 10px; border-radius: 10px; max-width: 600px; max-height: 150px; overflow-y: auto; }
+
+    /* Updated Start Page Styles */
+    #startPage {
+      position: fixed;
+      inset: 0;
+      background: rgba(240, 244, 248, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .start-modal {
+      background: #ffffff;
+      width: 90%;
+      max-width: 500px;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .start-modal h2 {
+      margin-bottom: 20px;
+      font-size: 2rem;
+      color: #333;
+      background: #f0f4f8;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .start-modal input {
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1.1rem;
+    }
+    .start-modal button {
+      width: 100%;
+      padding: 16px;
+      margin-top: 10px;
+      background-color: #4CAF50;
+      color: white;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .start-modal button:hover {
+      background-color: #45A049;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Start Page -->
+  <div id="startPage">
+    <div class="start-modal">
+      <h2>Start Match</h2>
+      <input id="team1" placeholder="Team 1 Name" />
+      <input id="team2" placeholder="Team 2 Name" />
+      <input id="totalOvers" type="number" placeholder="Overs (1-10)" min="1" max="10" />
+      <button onclick="startMatch()">Start Match</button>
+    </div>
+  </div>
+
+  <!-- Target for Innings 2 -->
+  <div id="targetHeading"></div>
+
+  <!-- Scoreboard -->
+  <div class="scoreboard">
+    <h3 id="teamNames"></h3>
+    <h2>Cricket Scorecard</h2>
+    <div class="section">
+      <input id="batsman1" placeholder="Batsman 1 Name" />
+      <div id="b1Score" class="stat"></div>
+      <input id="batsman2" placeholder="Batsman 2 Name" />
+      <div id="b2Score" class="stat"></div>
+    </div>
+    <div class="section">
+      <select id="bowlerSelect" onchange="changeBowler()">
+        <option disabled selected>Select Bowler</option>
+      </select>
+      <input id="newBowler" placeholder="Add New Bowler" />
+      <button onclick="addBowler()">Add Bowler</button>
+    </div>
+    <div class="section highlight">
+      <p>Total Runs: <span id="totalRuns">0</span></p>
+      <p>Overs: <span id="overs">0.0</span></p>
+      <p>Wickets: <span id="wickets">0</span></p>
+    </div>
+    <div class="buttons">
+      <button onclick="addBall(0)">Dot</button>
+      <button onclick="addBall(1)">1 Run</button>
+      <button onclick="addBall(2)">2 Runs</button>
+      <button onclick="addBall(3)">3 Runs</button>
+      <button onclick="addBall(4)">Four</button>
+      <button onclick="addBall(6)">Six</button>
+      <button onclick="addNoBall()">No Ball</button>
+      <button onclick="addWicket()">Wicket</button>
+      <button class="btn-undo" onclick="undo()">Undo</button>
+      <button class="btn-reset" onclick="reset()">Reset</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="scoreboard">
+    <h3>Player Stats</h3>
+    <div id="playerStats"></div>
+    <h3>Bowler Stats</h3>
+    <div id="bowlerStats"></div>
+  </div>
+
+  <!-- Match Summary -->
+  <div id="matchSummary"></div>
+
+  <!-- Commentary -->
+  <div class="commentary">
+    <h4>Ball-by-Ball Commentary</h4>
+    <div id="commentaryText"></div>
+  </div>
+
+  <script>
+    let totalRuns=0, balls=0, wickets=0, maxOvers=10;
+    let b1runs=0,b1balls=0,b2runs=0,b2balls=0,striker=1;
+    let bowlers={}, bowlerQueue=[], currentBowler=null, playerStats=[];
+    let team1Name="", team2Name="", innings=1, team1Score=0, target=0;
+    const wicketSound = new Audio('https://example.com/wicket.mp3');
+    const winSound    = new Audio('https://example.com/win.mp3');
+
+    function updateDisplay() {
+      document.getElementById("totalRuns").textContent = totalRuns;
+      document.getElementById("overs").textContent = `${Math.floor(balls/6)}.${balls%6}`;
+      document.getElementById("wickets").textContent = wickets;
+      updateBatsmenScores(); updatePlayerStats(); updateBowlerStats();
+    }
+
+    function updateBatsmenScores() {
+      const n1 = document.getElementById("batsman1").value||"Batsman 1";
+      const n2 = document.getElementById("batsman2").value||"Batsman 2";
+      document.getElementById("b1Score").innerHTML=`<strong>${n1}</strong>: ${b1runs} (${b1balls})`;
+      document.getElementById("b2Score").innerHTML=`<strong>${n2}</strong>: ${b2runs} (${b2balls})`;
+    }
+
+    function updatePlayerStats() {
+      let html=""; playerStats.forEach(p=>{
+        html+=`<p class="stat"><strong>${p.name}</strong>: ${p.runs} (${p.balls})</p>`;
+      });
+      document.getElementById("playerStats").innerHTML=html;
+    }
+
+    function updateBowlerStats() {
+      let html=`<table><tr><th>Name</th><th>Overs</th><th>Runs</th><th>Wkts</th></tr>`;
+      for(let n in bowlers){
+        let b=bowlers[n];
+        html+=`<tr><td>${n}</td><td>${Math.floor(b.balls/6)}.${b.balls%6}</td><td>${b.runs}</td><td>${b.wickets}</td></tr>`;
+      }
+      html+="</table>";
+      document.getElementById("bowlerStats").innerHTML=html;
+    }
+
+    function startMatch(){
+      team1Name=document.getElementById("team1").value.trim();
+      team2Name=document.getElementById("team2").value.trim();
+      maxOvers=parseInt(document.getElementById("totalOvers").value);
+      if(!team1Name||!team2Name||isNaN(maxOvers)) return alert("Enter valid inputs");
+      document.getElementById("teamNames").textContent = 
+        `${team1Name} vs ${team2Name} (${maxOvers} overs)`;
+      document.getElementById("startPage").style.display="none";
+    }
+
+    function changeBowler(){
+      currentBowler=document.getElementById("bowlerSelect").value;
+    }
+
+    function addBowler(){
+      let n=document.getElementById("newBowler").value.trim();
+      if(!n||bowlers[n]) return;
+      bowlers[n]={runs:0,balls:0,wickets:0};
+      bowlerQueue.push(n);
+      let opt=document.createElement("option"); opt.value=n; opt.textContent=n;
+      document.getElementById("bowlerSelect").appendChild(opt);
+      if(!currentBowler) currentBowler=n;
+      document.getElementById("bowlerSelect").value=currentBowler;
+      document.getElementById("newBowler").value="";
+    }
+
+    function updateCommentary(msg){
+      let p=document.createElement("p"); p.textContent=msg;
+      let box=document.getElementById("commentaryText");
+      box.appendChild(p); box.scrollTop=box.scrollHeight;
+    }
+
+    function checkSwitchInnings(){
+      if(innings===1 && balls>=maxOvers*6){
+        switchInnings();
+        return true;
+      }
+      return false;
+    }
+
+    function addBall(r){
+      if(!currentBowler) return alert("Select a bowler");
+      if(balls>=maxOvers*6) return;
+      totalRuns+=r; balls++;
+      bowlers[currentBowler].balls++; bowlers[currentBowler].runs+=r;
+      if(striker===1){ b1runs+=r; b1balls++; }
+      else{ b2runs+=r; b2balls++; }
+      if(r%2) striker = striker===1?2:1;
+      if(balls%6===0){ striker = striker===1?2:1; }
+      updateCommentary(`Ball ${balls}: ${r===0?"Dot":r===4?"Four":r===6?"Six":r+" run(s)"}`);
+      if(checkSwitchInnings()) return;
+      updateDisplay();
+      if(innings===2){
+        if(totalRuns>=target) return endMatch(`${team2Name} wins!`);
+        if(balls>=maxOvers*6) return endMatch(`${team1Name} wins!`);
+      }
+    }
+
+    function addWicket(){
+      if(!currentBowler) return alert("Select a bowler");
+      if(balls>=maxOvers*6) return;
+      wickets++; balls++;
+      bowlers[currentBowler].balls++; bowlers[currentBowler].wickets++;
+      let name = striker===1?document.getElementById("batsman1").value:document.getElementById("batsman2").value;
+      let runs = striker===1?b1runs:b2runs;
+      let faced= striker===1?b1balls:b2balls;
+      playerStats.push({name, runs, balls: faced});
+      if(striker===1){ b1runs=b1balls=0; document.getElementById("batsman1").value=""; }
+      else{ b2runs=b2balls=0; document.getElementById("batsman2").value=""; }
+      wicketSound.play();
+      updateCommentary(`${name} is out!`);
+      striker = striker===1?2:1;
+      if(checkSwitchInnings()) return;
+      updateDisplay();
+    }
+
+    function addNoBall(){
+      if(!currentBowler) return alert("Select a bowler");
+      totalRuns++;
+      updateCommentary(`No-ball! +1`);
+      if(checkSwitchInnings()) return;
+      updateDisplay();
+    }
+
+    function switchInnings(){
+      team1Score = totalRuns;
+      target = team1Score + 1;
+      document.getElementById("targetHeading").textContent = 
+        `${team2Name} needs ${target} to win`;
+      totalRuns=balls=wickets=b1runs=b1balls=b2runs=b2balls=0;
+      striker=1; innings=2; playerStats=[]; bowlers={}; bowlerQueue=[]; currentBowler=null;
+      document.getElementById("bowlerSelect").innerHTML = '<option disabled selected>Select Bowler</option>';
+      document.getElementById("batsman1").value = document.getElementById("batsman2").value = "";
+      document.getElementById("commentaryText").innerHTML = "";
+      updateDisplay();
+    }
+
+    function endMatch(msg){
+      document.getElementById("matchSummary").innerHTML = `<h2 class="confetti">${msg}</h2>
+        <p>${team1Name}: ${team1Score}</p><p>${team2Name}: ${totalRuns}</p>
+        <button onclick="location.reload()">Restart Match</button>`;
+      document.getElementById("matchSummary").style.display = "block";
+      winSound.play(); triggerConfetti();
+    }
+
+    function triggerConfetti(){
+      let c=document.createElement("div"); c.classList.add("confetti");
+      document.body.appendChild(c);
+      setTimeout(()=>document.body.removeChild(c),5000);
+    }
+
+    function undo(){ /* implement if needed */ }
+    function reset(){ location.reload(); }
+  </script>
+</body>
+</html>
